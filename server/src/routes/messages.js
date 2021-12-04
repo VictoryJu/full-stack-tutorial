@@ -34,7 +34,7 @@ const messagesRoute =[
       const msgs = getMsgs()
       const newMsg = {
         id: v4(),
-        test: body.textm,
+        text: body.text,
         userId: body.userId,
         timestamp: Date.now()
       }
@@ -45,11 +45,12 @@ const messagesRoute =[
   },
   { // UPDATE MESSAGES
     method: 'put',
-    route: '/messages:id',
-    handler: ({ body, param:{id}},res) =>{
+    route: '/messages/:id',
+    handler: ({ body, params:{id}},res) =>{
       try{
         const msgs = getMsgs()
         const targetIndex = msgs.findIndex(msg => msg.id === id)
+        console.log(id);
         if(targetIndex < 0 ) throw '메시지가 없습니다.'
         if(msgs[targetIndex].userId !== body.userId) throw '사용자가 다릅니다.'
 
@@ -65,13 +66,13 @@ const messagesRoute =[
   },  
   { // DELETE MESSAGES
     method: 'delete',
-    route: '/messages:id',
-    handler: ({ body, param:{id}},res) =>{
+    route: '/messages/:id',
+    handler: ({ params:{id}, query:{userId}} ,res) =>{
       try{
         const msgs = getMsgs()
         const targetIndex = msgs.findIndex(msg => msg.id === id)
         if(targetIndex < 0 ) throw '메시지가 없습니다.'
-        if(msgs[targetIndex].userId !== body.userId) throw '사용자가 다릅니다.'
+        if(msgs[targetIndex].userId !== userId) throw '사용자가 다릅니다.'
 
         msgs.splice(targetIndex,1);
         setMsgs(msgs);

@@ -1,44 +1,30 @@
 import MsgItem from "./MsgItem";
 import MsgInput from "./MsgInput";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import fetcher from "../fetcher";
 const UserIds = ["roy", "jay"];
-const getRendomUserId = () => UserIds[Math.round(Math.random())]; // 랜덤으로 0아니면 1이 나옴 그러면 로이나 제이 중에 하나가 골라짐
-
-const originalMsgs = Array(50)
-  .fill(0)
-  .map((_, i) => ({
-    id: (i + 1).toString(),
-    userId: getRendomUserId(),
-    timestamp: 1234567890123 + i * 1000 * 60,
-    text: `${i + 1} mock text`,
-  }))
-  .reverse();
-
-console.log(JSON.stringify(originalMsgs));
 
 const MsgList = () => {
-  const [msgs, setMsgs] = useState(originalMsgs);
+
+  const {query: { userId = "" }} = useRouter();
+  const [msgs, setMsgs] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const onCreate = (text) => {
-    const newMsg = {
-      id: msgs.length + 1,
-      userId: getRendomUserId(),
-      timestamp: Date.now(),
-      text: `${msgs.length + 1} ${text}`,
-    };
+
+  const onCreate = async text => {
+    const newMsg = await fetcher("post", "/messages", { text, userId });
+    if(!newMsg) throw Error('없습다.')
     setMsgs((msgs) => [newMsg, ...msgs]);
   };
 
-  const onUpdate = (text, id) => {
+  const onUpdate = async (text, id) => {
+    const newMsg = await fetcher("put",`/messages/${id}`,{text,userId});
+    if(!newMsg) throw Error('없습다.')
     setMsgs((msgs) => {
       const targetIndex = msgs.findIndex((msg) => msg.id === id);
       if (targetIndex < 0) return;
       const newMsgs = [...msgs];
-      newMsgs.splice(targetIndex, 1, {
-        ...msgs[targetIndex],
-        text,
-      });
+      newMsgs.splice(targetIndex, 1, newMsg)
       return newMsgs;
     });
     doneEdit();
@@ -46,10 +32,19 @@ const MsgList = () => {
 
   const doneEdit = () => setEditingId(null);
 
-  const onDelete = (id) => {
-    setMsgs((msgs) => {
-      const targetIndex = msgs.findIndex((msg) => msg.id === id);
-      if (targetIndex < 0) return;
+  const getMessages = async () => {
+    const msgs = await fetcher("get", "/messages");
+    setMsgs(msgs);
+  };
+  useEffect(() => {
+    getMessages();
+  }, []);
+
+  const onDelete = async id => {
+    const receiveidId = await fetcher('delete', `/messages/${id}`,{params: {userId} }); //클라이언트에서는 파람스로 보내지만 서버에서는 쿼리로 받아짐
+    setMsgs(msgs => {
+      const targetIndex = msgs.findIndex((msg) => msg.id === receiveidId.toString());
+      if (targetIndex < 0) return msgs;
       const newMsgs = [...msgs];
       newMsgs.splice(targetIndex, 1);
       return newMsgs;
@@ -68,6 +63,7 @@ const MsgList = () => {
             onDelete={() => onDelete(item.id)}
             startEdit={() => setEditingId(item.id)}
             isEdting={editingId === item.id}
+            myId={userId}
           />
         ))}
       </ul>
