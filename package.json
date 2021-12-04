@@ -1,0 +1,17 @@
+{
+  "name": "full-stack-tutorial",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/VictoryJu/full-stack-tutorial.git",
+  "author": "VictoryJu <kob0805@naver.com>",
+  "license": "MIT",
+  "private":true,
+  "workspaces":[
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "client": "yarn workspace client start",
+    "server": "yarn workspace server start"
+  }
+}
