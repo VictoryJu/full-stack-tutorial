@@ -1,11 +1,10 @@
-import Home from '.'
 import './index.scss'
 
-const App = ({ Component, pageProps}) => <Component {...pageProps} />
+const App = ({ Component, pageProps }) => <Component {...pageProps} />
 
-App.getInitialProps = async ({ctx, Component}) =>{
+App.getInitialProps = async ({ ctx, Component }) => {
   const pageProps = await Component.getInitialProps?.(ctx)
-  return {pageProps}
+  return { pageProps }
 }
 
-export default Home
+export default App

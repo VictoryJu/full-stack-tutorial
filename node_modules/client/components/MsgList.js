@@ -1,74 +1,85 @@
-import MsgItem from "./MsgItem";
-import MsgInput from "./MsgInput";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import fetcher from "../fetcher";
-const UserIds = ["roy", "jay"];
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/router'
+import MsgItem from './MsgItem'
+import MsgInput from './MsgInput'
+import fetcher from '../fetcher'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
 
-const MsgList = () => {
+const MsgList = ({ smsgs, users }) => {
+  const { query } = useRouter()
+  const userId = query.userId || query.userid || ''
 
-  const {query: { userId = "" }} = useRouter();
-  const [msgs, setMsgs] = useState([]);
-  const [editingId, setEditingId] = useState(null);
+  const [msgs, setMsgs] = useState(smsgs)
+  const [editingId, setEditingId] = useState(null)
+  const [hasNext, setHasNext] = useState(true)
+  const fetchMoreEl = useRef(null)
+  const intersecting = useInfiniteScroll(fetchMoreEl)
 
   const onCreate = async text => {
-    const newMsg = await fetcher("post", "/messages", { text, userId });
-    if(!newMsg) throw Error('없습다.')
-    setMsgs((msgs) => [newMsg, ...msgs]);
-  };
+    const newMsg = await fetcher('post', '/messages', { text, userId })
+    if (!newMsg) throw Error('something wrong')
+    setMsgs(msgs => [newMsg, ...msgs])
+  }
 
   const onUpdate = async (text, id) => {
-    const newMsg = await fetcher("put",`/messages/${id}`,{text,userId});
-    if(!newMsg) throw Error('없습다.')
-    setMsgs((msgs) => {
-      const targetIndex = msgs.findIndex((msg) => msg.id === id);
-      if (targetIndex < 0) return;
-      const newMsgs = [...msgs];
+    const newMsg = await fetcher('put', `/messages/${id}`, { text, userId })
+    if (!newMsg) throw Error('something wrong')
+    setMsgs(msgs => {
+      const targetIndex = msgs.findIndex(msg => msg.id === id)
+      if (targetIndex < 0) return msgs
+      const newMsgs = [...msgs]
       newMsgs.splice(targetIndex, 1, newMsg)
-      return newMsgs;
-    });
-    doneEdit();
-  };
-
-  const doneEdit = () => setEditingId(null);
-
-  const getMessages = async () => {
-    const msgs = await fetcher("get", "/messages");
-    setMsgs(msgs);
-  };
-  useEffect(() => {
-    getMessages();
-  }, []);
+      return newMsgs
+    })
+    doneEdit()
+  }
 
   const onDelete = async id => {
-    const receiveidId = await fetcher('delete', `/messages/${id}`,{params: {userId} }); //클라이언트에서는 파람스로 보내지만 서버에서는 쿼리로 받아짐
+    const receivedId = await fetcher('delete', `/messages/${id}`, { params: { userId } })
     setMsgs(msgs => {
-      const targetIndex = msgs.findIndex((msg) => msg.id === receiveidId.toString());
-      if (targetIndex < 0) return msgs;
-      const newMsgs = [...msgs];
-      newMsgs.splice(targetIndex, 1);
-      return newMsgs;
-    });
-  };
+      const targetIndex = msgs.findIndex(msg => msg.id === receivedId + '')
+      if (targetIndex < 0) return msgs
+      const newMsgs = [...msgs]
+      newMsgs.splice(targetIndex, 1)
+      return newMsgs
+    })
+  }
+
+  const doneEdit = () => setEditingId(null)
+
+  const getMessages = async () => {
+    const newMsgs = await fetcher('get', '/messages', { params: { cursor: msgs[msgs.length - 1]?.id || '' } })
+    if (newMsgs.length === 0) {
+      setHasNext(false)
+      return
+    }
+    setMsgs(msgs => [...msgs, ...newMsgs])
+  }
+
+  useEffect(() => {
+    if (intersecting && hasNext) getMessages()
+  }, [intersecting])
 
   return (
     <>
-      <MsgInput mutate={onCreate} />
+      {userId && <MsgInput mutate={onCreate} />}
       <ul className="messages">
-        {msgs.map((item) => (
+        {msgs.map(x => (
           <MsgItem
-            key={item.id}
-            {...item}
+            key={x.id}
+            {...x}
             onUpdate={onUpdate}
-            onDelete={() => onDelete(item.id)}
-            startEdit={() => setEditingId(item.id)}
-            isEdting={editingId === item.id}
+            onDelete={() => onDelete(x.id)}
+            startEdit={() => setEditingId(x.id)}
+            isEditing={editingId === x.id}
             myId={userId}
+            user={users[x.userId]}
           />
         ))}
       </ul>
+      <div ref={fetchMoreEl} />
     </>
-  );
-};
+  )
+}
 
-export default MsgList;
+export default MsgList
